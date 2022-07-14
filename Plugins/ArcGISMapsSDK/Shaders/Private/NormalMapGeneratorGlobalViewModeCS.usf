@@ -1,0 +1,35 @@
+#include "/Engine/Private/Common.ush"
+
+#include "/Plugin/ArcGISMapsSDK/Private/NormalMapGeneratorUtils.ush"
+
+Texture2D<float> Input;
+SamplerState Sampler;
+
+float4 InputOffsetAndScale;
+float CircleLongitude;
+float MinLatitude;
+float LatitudeAngleDelta;
+float LongitudeArc;
+float LatitudeLength;
+
+RWTexture2D<float4> Output;
+
+[numthreads(8, 8, 1)]
+void NormalMapGeneratorGlobalViewModeCS(uint3 ThreadID : SV_DispatchThreadID)
+{
+	uint width, height;
+	Output.GetDimensions(width, height);
+
+	Output[ThreadID.xy] = CalculateNormalGlobalViewMode(ThreadID.x,
+		ThreadID.y,
+		width,
+		height,
+		Input,
+		Sampler,
+		InputOffsetAndScale,
+		CircleLongitude,
+		MinLatitude,
+		LatitudeLength,
+		LatitudeAngleDelta,
+		LongitudeArc);
+}

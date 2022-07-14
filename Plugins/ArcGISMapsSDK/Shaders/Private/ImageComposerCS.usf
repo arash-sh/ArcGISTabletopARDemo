@@ -1,0 +1,60 @@
+#include "/Engine/Private/Common.ush"
+
+// Compute shader
+
+uint NumTextures;
+
+SamplerState Samplers_0;
+SamplerState Samplers_1;
+SamplerState Samplers_2;
+SamplerState Samplers_3;
+SamplerState Samplers_4;
+SamplerState Samplers_5;
+SamplerState Samplers_6;
+SamplerState Samplers_7;
+
+Texture2D<float4> Textures_0;
+Texture2D<float4> Textures_1;
+Texture2D<float4> Textures_2;
+Texture2D<float4> Textures_3;
+Texture2D<float4> Textures_4;
+Texture2D<float4> Textures_5;
+Texture2D<float4> Textures_6;
+Texture2D<float4> Textures_7;
+
+float4 OffsetScaleOpacity[8];
+
+RWTexture2D<float4> Output;
+
+#define SAMPLE_AND_BLEND(num) \
+	if (num < NumTextures)																													\
+	{																																		\
+		texSample = texSample = Textures_##num.SampleLevel(Samplers_##num, uv * OffsetScaleOpacity[num].z + OffsetScaleOpacity[num].xy, 0);	\
+		output = lerp(output, texSample.rgb, OffsetScaleOpacity[num].w * texSample.a);														\
+	}
+
+[numthreads(8, 8, 1)]
+void ImageComposerCS(uint3 ThreadID : SV_DispatchThreadID)
+{
+	uint width, height;
+	Output.GetDimensions(width, height);
+
+	if (ThreadID.x < width && ThreadID.y < height)
+	{
+		float2 uv = float2((ThreadID.x + 0.5f) / width, (ThreadID.y + 0.5f) / height);
+
+		float3 output = 1.0f;
+		float4 texSample = 0.0f;
+
+		SAMPLE_AND_BLEND(0);
+		SAMPLE_AND_BLEND(1);
+		SAMPLE_AND_BLEND(2);
+		SAMPLE_AND_BLEND(3);
+		SAMPLE_AND_BLEND(4);
+		SAMPLE_AND_BLEND(5);
+		SAMPLE_AND_BLEND(6);
+		SAMPLE_AND_BLEND(7);
+
+		Output[ThreadID.xy] = float4(output, 1.0f);
+	}
+}

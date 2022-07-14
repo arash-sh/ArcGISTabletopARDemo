@@ -1,0 +1,149 @@
+float GetLongitudeLength(float circleLongitude, float minLatitude, float latitudeAngleDelta, float longitudeArc, float step)
+{
+	return circleLongitude * sin(90.0 - abs(minLatitude + step * latitudeAngleDelta)) * longitudeArc;
+}
+
+float4 CalculateNormalGlobalViewMode(uint posX,
+	uint posY,
+	float outputWidth,
+	float outputHeight,
+	Texture2D<float> elevations,
+	SamplerState samplerState,
+	float4 inputOffsetAndScale,
+	float circleLongitude,
+	float minLatitude,
+	float latitudeLength,
+	float latitudeAngleDelta,
+	float longitudeArc)
+{
+	uint inputWidth, inputHeight;
+	elevations.GetDimensions(inputWidth, inputHeight);
+
+	// get sample texel coordinates
+	int2 sampleCoord0 = int2(posX, posY);
+	int2 sampleCoord1 = max(sampleCoord0 + int2(0, -1), 0);
+	int2 sampleCoord2 = sampleCoord0 + int2(0, 1);
+	int2 sampleCoord3 = max(sampleCoord0 + int2(-1, 0), 0);
+	int2 sampleCoord4 = sampleCoord0 + int2(1, 0);
+
+	// calculate sample UVs for these texels
+	float2 scaleTexelCoordToUV = float2(1.f / outputWidth, 1.f / outputHeight);
+	float2 sampleUV0 = (sampleCoord0 + 0.5f) * scaleTexelCoordToUV;
+	float2 sampleUV1 = (sampleCoord1 + 0.5f) * scaleTexelCoordToUV;
+	float2 sampleUV2 = (sampleCoord2 + 0.5f) * scaleTexelCoordToUV;
+	float2 sampleUV3 = (sampleCoord3 + 0.5f) * scaleTexelCoordToUV;
+	float2 sampleUV4 = (sampleCoord4 + 0.5f) * scaleTexelCoordToUV;
+
+	// sample elevation values
+	float sample0 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV0 * inputOffsetAndScale.zw, 0);
+	float sample1 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV1 * inputOffsetAndScale.zw, 0);
+	float sample2 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV2 * inputOffsetAndScale.zw, 0);
+	float sample3 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV3 * inputOffsetAndScale.zw, 0);
+	float sample4 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV4 * inputOffsetAndScale.zw, 0);
+
+	float latitudePixelSize = latitudeLength / inputHeight;
+	float longitudePixelSize = GetLongitudeLength(circleLongitude, minLatitude, latitudeAngleDelta, longitudeArc, (float)posY) / inputWidth;
+
+	float3 v0 = float3(0.0f, latitudePixelSize * (abs(sampleCoord2.y - sampleCoord0.y)), (sample2 - sample0));
+	float3 v1 = float3(0.0f, -latitudePixelSize * (abs(sampleCoord1.y - sampleCoord0.y)), (sample1 - sample0));
+	float3 v2 = float3(longitudePixelSize * (abs(sampleCoord4.x - sampleCoord0.x)), 0.0f, (sample4 - sample0));
+	float3 v3 = float3(-longitudePixelSize * (abs(sampleCoord3.x - sampleCoord0.x)), 0.0f, (sample3 - sample0));
+
+	float3 normal = 0;
+
+	[flatten]
+	if (posX != 0 && posY != 0)
+	{
+		normal = normalize(cross(v0, v3) + cross(v1, v2));
+	}
+	else
+	{
+		if (posX == 0 && posY == 0)
+		{
+			normal = normalize(cross(v2, v0));
+		}
+		else if (posX == 0)
+		{
+			normal = normalize(cross(v2, v0));
+		}
+		else if (posY == 0)
+		{
+			normal = normalize(cross(v0, v3));
+		}
+	}
+
+	// As this code was ported from Unity, the normal Y component needs to be negated to convert to UE format
+	normal.g *= -1.f;
+
+	return float4(0.5f * normal + 0.5f, 1);
+}
+
+
+float4 CalculateNormalLocalViewMode(uint posX,
+	uint posY,
+	float outputWidth,
+	float outputHeight,
+	Texture2D<float> elevations,
+	SamplerState samplerState,
+	float4 inputOffsetAndScale,
+	float latitudeLength,
+	float longitudeLength)
+{
+	uint inputWidth, inputHeight;
+	elevations.GetDimensions(inputWidth, inputHeight);
+
+	// get sample texel coordinates
+	int2 sampleCoord0 = int2(posX, posY);
+	int2 sampleCoord1 = max(sampleCoord0 + int2(0, -1), 0);
+	int2 sampleCoord2 = sampleCoord0 + int2(0, 1);
+	int2 sampleCoord3 = max(sampleCoord0 + int2(-1, 0), 0);
+	int2 sampleCoord4 = sampleCoord0 + int2(1, 0);
+
+	// calculate sample UVs for these texels
+	float2 scaleTexelCoordToUV = float2(1.f / outputWidth, 1.f / outputHeight);
+	float2 sampleUV0 = (sampleCoord0 + 0.5f) * scaleTexelCoordToUV;
+	float2 sampleUV1 = (sampleCoord1 + 0.5f) * scaleTexelCoordToUV;
+	float2 sampleUV2 = (sampleCoord2 + 0.5f) * scaleTexelCoordToUV;
+	float2 sampleUV3 = (sampleCoord3 + 0.5f) * scaleTexelCoordToUV;
+	float2 sampleUV4 = (sampleCoord4 + 0.5f) * scaleTexelCoordToUV;
+
+	// sample elevation values
+	float sample0 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV0 * inputOffsetAndScale.zw, 0);
+	float sample1 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV1 * inputOffsetAndScale.zw, 0);
+	float sample2 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV2 * inputOffsetAndScale.zw, 0);
+	float sample3 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV3 * inputOffsetAndScale.zw, 0);
+	float sample4 = elevations.SampleLevel(samplerState, inputOffsetAndScale.xy + sampleUV4 * inputOffsetAndScale.zw, 0);
+
+	float3 v0 = float3(0.0f, latitudeLength * (abs(sampleCoord2.y - sampleCoord0.y)), (sample2 - sample0));
+	float3 v1 = float3(0.0f, -latitudeLength * (abs(sampleCoord1.y - sampleCoord0.y)), (sample1 - sample0));
+	float3 v2 = float3(longitudeLength * (abs(sampleCoord4.x - sampleCoord0.x)), 0.0f, (sample4 - sample0));
+	float3 v3 = float3(-longitudeLength * (abs(sampleCoord3.x - sampleCoord0.x)), 0.0f, (sample3 - sample0));
+
+	float3 normal = 0;
+
+	[flatten]
+	if (posX != 0 && posY != 0)
+	{
+		normal = normalize(cross(v0, v3) + cross(v1, v2));
+	}
+	else
+	{
+		if (posX == 0 && posY == 0)
+		{
+			normal = normalize(cross(v2, v0));
+		}
+		else if (posX == 0)
+		{
+			normal = normalize(cross(v2, v0));
+		}
+		else if (posY == 0)
+		{
+			normal = normalize(cross(v0, v3));
+		}
+	}
+
+	// As this code was ported from Unity, the normal Y component needs to be negated to convert to UE format
+	normal.g *= -1.f;
+
+	return float4(0.5f * normal + 0.5f, 1);
+}

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- steps to add to build additions -->
+<root xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- init section is always evaluated once per architecture -->
+    <init>
+        <setBool result="bSupported" value="false"/>
+        <isArch arch="arm64-v8a">
+            <setBool result="bSupported" value="true"/>
+        </isArch>
+    </init>
+
+    <!-- optional updates applied to AndroidManifest.xml -->
+    <androidManifestUpdates>
+        <loopElements tag="activity">
+                <setStringFromAttribute result="activityName" tag="$" name="android:name" />
+                <setBoolIsEqual result="bGameActivity" arg1="$S(activityName)" arg2="com.epicgames.unreal.GameActivity" />
+                <if condition="bGameActivity">
+                <true>
+                    <addElements tag="$">
+                        <intent-filter>
+                            <action android:name="android.intent.action.VIEW" />
+                            <category android:name="android.intent.category.DEFAULT" />
+                            <category android:name="android.intent.category.BROWSABLE" />
+                            <data android:scheme="unreal" android:host="auth" />
+                        </intent-filter>
+                    </addElements>
+                </true>
+            </if>
+        </loopElements>
+    </androidManifestUpdates>
+
+    <!-- optional files or directories to copy to Intermediate/Android/APK -->
+    <resourceCopies>
+        <isArch arch="arm64-v8a">
+            <log text="Copying libcrypto_1_1.so"/>
+            <copyFile
+                src="$S(PluginDir)/../../Binaries/ThirdParty/ArcGISMapsSDK/Android/arm64/libcrypto_1_1.so"
+                dst="$S(BuildDir)/libs/arm64-v8a/libcrypto_1_1.so"
+            />
+            <log text="Copying libssl_1_1.so"/>
+            <copyFile
+                src="$S(PluginDir)/../../Binaries/ThirdParty/ArcGISMapsSDK/Android/arm64/libssl_1_1.so"
+                dst="$S(BuildDir)/libs/arm64-v8a/libssl_1_1.so"
+            />
+        </isArch>
+    </resourceCopies>
+</root>
