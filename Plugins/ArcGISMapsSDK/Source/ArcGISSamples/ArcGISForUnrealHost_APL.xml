@@ -42,6 +42,6 @@
                 src="$S(PluginDir)/../../Binaries/ThirdParty/ArcGISMapsSDK/Android/arm64/libssl_1_1.so"
                 dst="$S(BuildDir)/libs/arm64-v8a/libssl_1_1.so"
             />
-        </isArch>
+        </isArch>/Users/ara12405/Documents/Unreal Projects/sample_project/Plugins/ArcGISMapsSDK/Source/ArcGISMapsSDK/ArcGISMapsSDK_APL.xml
     </resourceCopies>
 </root>
